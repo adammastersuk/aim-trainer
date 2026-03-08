@@ -1,12 +1,10 @@
-import { createLocalLeaderboard } from '/shared/js/leaderboard.js';
-
 const RUN_DURATION_MS = 30_000;
 const MISS_PENALTY = 35;
 const REACTION_TARGET_MS = 450;
 const REACTION_FACTOR = 0.08;
-const TARGET_MARGIN = 6;
-
-const leaderboard = createLocalLeaderboard('aim-trainer');
+const TARGET_MARGIN = 8;
+const MAX_ENTRIES = 25;
+const LEADERBOARD_STORAGE_KEY = 'aim-trainer:leaderboard';
 
 const els = {
   startBtn: document.getElementById('start-btn'),
@@ -42,6 +40,61 @@ const state = {
   submittedRunId: null,
 };
 
+function createLocalLeaderboard() {
+  function read() {
+    try {
+      const raw = localStorage.getItem(LEADERBOARD_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function write(entries) {
+    localStorage.setItem(LEADERBOARD_STORAGE_KEY, JSON.stringify(entries));
+  }
+
+  function sortEntries(entries) {
+    return [...entries]
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return a.createdAt - b.createdAt;
+      })
+      .slice(0, MAX_ENTRIES);
+  }
+
+  function list() {
+    return sortEntries(read());
+  }
+
+  async function submit(entry) {
+    const entries = sortEntries([...read(), entry]);
+    write(entries);
+
+    const rank = entries.findIndex(
+      (candidate) =>
+        candidate.createdAt === entry.createdAt &&
+        candidate.name === entry.name &&
+        candidate.score === entry.score,
+    );
+
+    return {
+      ok: true,
+      rank: rank + 1,
+      entry,
+    };
+  }
+
+  return {
+    list,
+    submit,
+  };
+}
+
+const leaderboard = createLocalLeaderboard();
+
 function computeAverageReactionMs(samples) {
   if (!samples.length) return 0;
   const total = samples.reduce((sum, value) => sum + value, 0);
@@ -60,6 +113,7 @@ function setTargetPosition() {
   const maxY = Math.max(TARGET_MARGIN, areaRect.height - targetRect.height - TARGET_MARGIN);
   const x = TARGET_MARGIN + Math.random() * (maxX - TARGET_MARGIN);
   const y = TARGET_MARGIN + Math.random() * (maxY - TARGET_MARGIN);
+
   els.target.style.left = `${x}px`;
   els.target.style.top = `${y}px`;
   state.lastSpawnedAt = performance.now();
@@ -74,25 +128,27 @@ function renderLiveStats(timeRemainingMs) {
   els.liveScore.textContent = String(score);
 }
 
-function lockFinalResult() {
+function createFinalResult() {
   const avgReactionMs = computeAverageReactionMs(state.reactionTimes);
-  const accuracy = state.hits + state.misses > 0 ? Number(((state.hits / (state.hits + state.misses)) * 100).toFixed(1)) : 0;
+  const attempts = state.hits + state.misses;
+  const accuracy = attempts > 0 ? Number(((state.hits / attempts) * 100).toFixed(1)) : 0;
   const score = computeScore({ hits: state.hits, misses: state.misses, avgReactionMs });
+  const createdAt = Date.now();
 
   return Object.freeze({
-    runId: `run-${Date.now()}`,
+    runId: `run-${createdAt}`,
     hits: state.hits,
     misses: state.misses,
     accuracy,
     avgReactionMs,
     score,
-    createdAt: Date.now(),
+    createdAt,
   });
 }
 
 function showResult(result) {
   const items = [
-    ['Score', result.score],
+    ['Final Score', result.score],
     ['Hits', result.hits],
     ['Misses', result.misses],
     ['Accuracy', `${result.accuracy}%`],
@@ -111,12 +167,13 @@ function showResult(result) {
 
 function endRun() {
   if (state.status !== 'running') return;
+
   clearInterval(state.timerId);
   state.timerId = null;
   state.status = 'finished';
   els.target.style.display = 'none';
   els.playHint.textContent = 'Run finished. Submit your score or restart.';
-  state.finalResult = lockFinalResult();
+  state.finalResult = createFinalResult();
   renderLiveStats(0);
   showResult(state.finalResult);
   els.restartBtn.disabled = false;
@@ -132,12 +189,15 @@ function startRun() {
   state.finalResult = null;
   state.submittedRunId = null;
 
+  els.submitBtn.disabled = false;
   els.submitMessage.textContent = '';
+  els.submitForm.reset();
   els.resultCard.classList.add('hidden');
   els.startBtn.disabled = true;
   els.restartBtn.disabled = false;
   els.target.style.display = 'block';
   els.playHint.textContent = '';
+
   setTargetPosition();
   renderLiveStats(RUN_DURATION_MS);
 
@@ -148,6 +208,7 @@ function startRun() {
       endRun();
       return;
     }
+
     renderLiveStats(remaining);
   }, 50);
 }
@@ -157,24 +218,20 @@ function restartRun() {
   state.status = 'idle';
   state.timerId = null;
   state.finalResult = null;
+  state.submittedRunId = null;
+
   els.startBtn.disabled = false;
   els.restartBtn.disabled = true;
+  els.submitBtn.disabled = false;
+  els.submitForm.reset();
+  els.submitMessage.textContent = '';
   els.resultCard.classList.add('hidden');
   els.playHint.textContent = 'Press start to begin.';
   els.target.style.display = 'none';
   renderLiveStats(RUN_DURATION_MS);
 }
 
-els.startBtn.addEventListener('click', () => {
-  if (state.status === 'running') return;
-  startRun();
-});
-
-els.restartBtn.addEventListener('click', () => {
-  restartRun();
-});
-
-els.playArea.addEventListener('click', (event) => {
+function handlePlayAreaPress(event) {
   if (state.status !== 'running') return;
 
   if (event.target === els.target) {
@@ -190,13 +247,7 @@ els.playArea.addEventListener('click', (event) => {
 
   state.misses += 1;
   renderLiveStats(RUN_DURATION_MS - (performance.now() - state.startedAt));
-});
-
-window.addEventListener('resize', () => {
-  if (state.status === 'running') {
-    setTargetPosition();
-  }
-});
+}
 
 function renderLeaderboard() {
   const rows = leaderboard.list();
@@ -216,11 +267,28 @@ function renderLeaderboard() {
       <td>${entry.name}</td>
       <td>${entry.score}</td>
       <td>${entry.hits}</td>
+      <td>${entry.misses}</td>
       <td>${entry.accuracy}%</td>
+      <td>${entry.avgReactionMs}ms</td>
     `;
     els.leaderboardTableBody.append(tr);
   });
 }
+
+els.startBtn.addEventListener('click', () => {
+  if (state.status === 'running') return;
+  startRun();
+});
+
+els.restartBtn.addEventListener('click', restartRun);
+els.playArea.addEventListener('click', handlePlayAreaPress);
+els.playArea.addEventListener('touchstart', handlePlayAreaPress, { passive: true });
+
+window.addEventListener('resize', () => {
+  if (state.status === 'running') {
+    setTargetPosition();
+  }
+});
 
 els.toggleLeaderboardBtn.addEventListener('click', () => {
   els.leaderboardCard.classList.toggle('show');
@@ -279,5 +347,5 @@ els.playerName.addEventListener('keydown', (event) => {
   event.stopPropagation();
 });
 
-restartRun();
+renderLiveStats(RUN_DURATION_MS);
 renderLeaderboard();

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Builds Hub</title>
+    <link rel="stylesheet" href="/shared/css/builds.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="card">
+        <h1>Builds</h1>
+        <p>Small playable experiments. Pick a build and jump in.</p>
+        <div id="builds-grid" class="grid grid-3"></div>
+      </section>
+    </main>
+
+    <script type="module">
+      import { BUILDS } from '/shared/js/builds-config.js';
+
+      const grid = document.getElementById('builds-grid');
+      BUILDS.forEach((build) => {
+        const card = document.createElement('article');
+        card.className = 'card';
+        card.innerHTML = `
+          <h2>${build.title}</h2>
+          <p>${build.description}</p>
+          <a class="button" href="${build.href}">Open Build</a>
+        `;
+        grid.append(card);
+      });
+    </script>
+  </body>
+</html>

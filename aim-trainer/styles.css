@@ -1,0 +1,95 @@
+.back-link {
+  display: inline-block;
+  margin-bottom: 14px;
+}
+
+.intro-card .actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.button.ghost {
+  background: transparent;
+  border-color: var(--border);
+}
+
+#play-area {
+  position: relative;
+  height: min(54vh, 420px);
+  min-height: 280px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.15));
+  overflow: hidden;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+#play-hint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+#target {
+  position: absolute;
+  width: clamp(56px, 9vw, 80px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 4px solid #f3f7ff;
+  background: radial-gradient(circle at 30% 30%, #ff9d9d, #ff4f4f);
+  box-shadow: 0 0 0 4px rgba(255, 79, 79, 0.25);
+  display: none;
+}
+
+#target.hit {
+  transform: scale(0.95);
+}
+
+.hidden {
+  display: none;
+}
+
+.submit-form {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+input {
+  width: min(280px, 100%);
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #0f1a2e;
+  color: var(--text);
+  font: inherit;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+@media (max-width: 767px) {
+  .hidden-on-mobile {
+    display: none;
+  }
+
+  .hidden-on-mobile.show {
+    display: block;
+  }
+}

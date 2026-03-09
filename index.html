@@ -22,54 +22,63 @@
   </head>
   <body>
     <main class="page">
-      <section class="card intro-card">
-        <div class="intro-top-row">
+      <section class="compact-header card">
+        <div class="top-row">
           <a class="back-link" href="https://builds.adammasters.co.uk" target="_blank" rel="noreferrer">← Back to Builds</a>
           <button id="theme-toggle-btn" class="button ghost" type="button" aria-label="Toggle light and dark mode">
             Toggle Theme
           </button>
         </div>
 
-        <h1>Aim Trainer</h1>
-        <p>Click targets fast, stay accurate, and post your best 30-second run.</p>
+        <div class="title-row">
+          <h1>Aim Trainer</h1>
+          <p>30 seconds. Hit fast, stay accurate.</p>
+        </div>
 
-        <div class="actions">
-          <button id="start-btn">Start 30s Run</button>
-          <button id="restart-btn" disabled>Restart</button>
-          <button id="toggle-leaderboard-btn" class="button ghost">View Leaderboard</button>
+        <div class="controls-row">
+          <button id="start-btn">Start</button>
+          <button id="restart-btn" disabled>Reset</button>
+          <button id="toggle-leaderboard-btn" class="button ghost">Leaderboard</button>
         </div>
       </section>
 
-      <section class="card">
-        <div class="kv live-stats">
-          <div class="kv-item"><span class="kv-label">Time Left</span><span id="time-left" class="kv-value">30.0s</span></div>
+      <section class="card stats-card">
+        <div class="kv live-stats" aria-live="polite">
+          <div class="kv-item"><span class="kv-label">Time</span><span id="time-left" class="kv-value">30.0s</span></div>
+          <div class="kv-item"><span class="kv-label">Score</span><span id="live-score" class="kv-value">0</span></div>
           <div class="kv-item"><span class="kv-label">Hits</span><span id="hits" class="kv-value">0</span></div>
           <div class="kv-item"><span class="kv-label">Misses</span><span id="misses" class="kv-value">0</span></div>
-          <div class="kv-item"><span class="kv-label">Score</span><span id="live-score" class="kv-value">0</span></div>
+          <div class="kv-item"><span class="kv-label">Accuracy</span><span id="live-accuracy" class="kv-value">0%</span></div>
+          <div class="kv-item"><span class="kv-label">Streak</span><span id="streak" class="kv-value">0</span></div>
         </div>
       </section>
 
-      <section class="card">
-        <div id="play-area" aria-label="Aim trainer play area">
+      <section class="card play-card">
+        <div id="play-area" aria-label="Aim trainer play area" tabindex="0">
           <button id="target" aria-label="Target"></button>
-          <p id="play-hint">Tap/click anywhere in the play area (or press Start) to begin.</p>
+          <p id="play-hint">Tap/click the arena (or press Start) to begin.</p>
+          <p id="feedback" class="feedback" aria-live="polite"></p>
         </div>
       </section>
 
       <section id="result-card" class="card hidden">
-        <h2>Game Over</h2>
+        <h2>Run Summary</h2>
         <div id="result-grid" class="kv"></div>
+        <p id="rank-message" class="rank-message"></p>
         <form id="submit-form" class="submit-form" autocomplete="off">
           <label for="player-name">Name</label>
-          <input id="player-name" name="name" maxlength="20" required placeholder="Player" />
-          <button id="submit-btn" type="submit">Submit Score</button>
+          <div class="submit-inline">
+            <input id="player-name" name="name" maxlength="20" required placeholder="Player" />
+            <button id="submit-btn" type="submit">Submit</button>
+          </div>
           <p id="submit-message" aria-live="polite"></p>
         </form>
       </section>
 
-      <section id="leaderboard-card" class="card hidden-on-mobile">
-        <h2>Leaderboard</h2>
-        <div id="leaderboard-empty" class="hidden"><p>No runs yet. Be the first to submit.</p></div>
+      <section id="leaderboard-card" class="card leaderboard-card hidden-on-mobile" aria-live="polite">
+        <h2>Global Top 10</h2>
+        <div id="leaderboard-empty" class="hidden"><p>No runs yet. Be the first to submit a score.</p></div>
+        <p id="leaderboard-error" class="error-message hidden">Leaderboard unavailable. Showing cached local results.</p>
         <div class="table-wrap">
           <table id="leaderboard-table">
             <thead>
@@ -77,10 +86,10 @@
                 <th>#</th>
                 <th>Name</th>
                 <th>Score</th>
-                <th>Hits</th>
-                <th>Misses</th>
                 <th>Accuracy</th>
                 <th>Avg Reaction</th>
+                <th>Mode</th>
+                <th>When</th>
               </tr>
             </thead>
             <tbody></tbody>

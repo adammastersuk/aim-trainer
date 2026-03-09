@@ -5,11 +5,13 @@ const REACTION_FACTOR = 0.08;
 const TARGET_MARGIN = 8;
 const MAX_ENTRIES = 25;
 const LEADERBOARD_STORAGE_KEY = 'aim-trainer:leaderboard';
+const THEME_STORAGE_KEY = 'aim-trainer:theme';
 
 const els = {
   startBtn: document.getElementById('start-btn'),
   restartBtn: document.getElementById('restart-btn'),
   toggleLeaderboardBtn: document.getElementById('toggle-leaderboard-btn'),
+  themeToggleBtn: document.getElementById('theme-toggle-btn'),
   timeLeft: document.getElementById('time-left'),
   hits: document.getElementById('hits'),
   misses: document.getElementById('misses'),
@@ -95,6 +97,27 @@ function createLocalLeaderboard() {
 
 const leaderboard = createLocalLeaderboard();
 
+function getPreferredTheme() {
+  const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+  if (savedTheme === 'light' || savedTheme === 'dark') {
+    return savedTheme;
+  }
+
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  els.themeToggleBtn.textContent = theme === 'dark' ? 'Use Light Mode' : 'Use Dark Mode';
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || getPreferredTheme();
+  const next = current === 'dark' ? 'light' : 'dark';
+  localStorage.setItem(THEME_STORAGE_KEY, next);
+  applyTheme(next);
+}
+
 function computeAverageReactionMs(samples) {
   if (!samples.length) return 0;
   const total = samples.reduce((sum, value) => sum + value, 0);
@@ -178,6 +201,7 @@ function endRun() {
   showResult(state.finalResult);
   els.restartBtn.disabled = false;
   els.startBtn.disabled = true;
+  els.playerName.focus();
 }
 
 function startRun() {
@@ -196,7 +220,7 @@ function startRun() {
   els.startBtn.disabled = true;
   els.restartBtn.disabled = false;
   els.target.style.display = 'block';
-  els.playHint.textContent = '';
+  els.playHint.textContent = 'Tap/click the target as quickly as you can.';
 
   setTargetPosition();
   renderLiveStats(RUN_DURATION_MS);
@@ -275,14 +299,20 @@ function renderLeaderboard() {
   });
 }
 
+function toggleLeaderboardVisibility() {
+  els.leaderboardCard.classList.toggle('show');
+  const isShown = els.leaderboardCard.classList.contains('show');
+  els.toggleLeaderboardBtn.textContent = isShown ? 'Hide Leaderboard' : 'View Leaderboard';
+  renderLeaderboard();
+}
+
 els.startBtn.addEventListener('click', () => {
   if (state.status === 'running') return;
   startRun();
 });
 
 els.restartBtn.addEventListener('click', restartRun);
-els.playArea.addEventListener('click', handlePlayAreaPress);
-els.playArea.addEventListener('touchstart', handlePlayAreaPress, { passive: true });
+els.playArea.addEventListener('pointerdown', handlePlayAreaPress);
 
 window.addEventListener('resize', () => {
   if (state.status === 'running') {
@@ -290,10 +320,8 @@ window.addEventListener('resize', () => {
   }
 });
 
-els.toggleLeaderboardBtn.addEventListener('click', () => {
-  els.leaderboardCard.classList.toggle('show');
-  renderLeaderboard();
-});
+els.toggleLeaderboardBtn.addEventListener('click', toggleLeaderboardVisibility);
+els.themeToggleBtn.addEventListener('click', toggleTheme);
 
 els.submitForm.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -347,5 +375,6 @@ els.playerName.addEventListener('keydown', (event) => {
   event.stopPropagation();
 });
 
+applyTheme(getPreferredTheme());
 renderLiveStats(RUN_DURATION_MS);
 renderLeaderboard();

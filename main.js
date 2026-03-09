@@ -6,6 +6,7 @@ const TARGET_MARGIN = 8;
 const MAX_ENTRIES = 10;
 const MODE = 'classic-30s';
 const LEADERBOARD_STORAGE_KEY = 'aim-trainer:leaderboard-cache';
+const SCORE_API_PATH = '/api/scores';
 const THEME_STORAGE_KEY = 'aim-trainer:theme';
 
 const els = {
@@ -78,34 +79,50 @@ function createGlobalLeaderboard() {
 
   async function list() {
     try {
-      const response = await fetch('/api/leaderboard?game=aim-trainer', { headers: { Accept: 'application/json' } });
-      if (!response.ok) throw new Error('Remote read failed');
+      const response = await fetch(SCORE_API_PATH, { headers: { Accept: 'application/json' } });
       const payload = await response.json();
-      const rows = sortEntries(payload.entries || []);
-      writeCache(rows);
-      return { ok: true, source: 'global', entries: rows };
+
+      if (payload.availability === 'ready' && Array.isArray(payload.scores)) {
+        const rows = sortEntries(
+          payload.scores.map((entry) => ({
+            ...entry,
+            avgReactionMs: entry.avg_reaction_ms,
+            createdAt: new Date(entry.created_at).getTime(),
+          }))
+        );
+        writeCache(rows);
+        return { ok: true, availability: 'ready', source: 'global', entries: rows };
+      }
+
+      if (payload.availability === 'not_configured') {
+        return { ok: false, availability: 'not_configured', source: 'cache', entries: readCache() };
+      }
+
+      return { ok: false, availability: 'unavailable', source: 'cache', entries: readCache() };
     } catch {
-      return { ok: false, source: 'cache', entries: readCache() };
+      return { ok: false, availability: 'unavailable', source: 'cache', entries: readCache() };
     }
   }
 
   async function submit(entry) {
-    try {
-      const response = await fetch('/api/leaderboard?game=aim-trainer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify(entry),
-      });
-      if (!response.ok) throw new Error('Remote submit failed');
-      const payload = await response.json();
-      writeCache(payload.entries || []);
-      return { ok: true, rank: payload.rank, source: 'global' };
-    } catch {
-      const entries = sortEntries([...readCache(), entry]);
-      writeCache(entries);
-      const rank = entries.findIndex((candidate) => candidate.runId === entry.runId) + 1;
-      return { ok: true, rank, source: 'cache' };
+    const response = await fetch(SCORE_API_PATH, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        name: entry.name,
+        score: entry.score,
+        accuracy: entry.accuracy,
+        avg_reaction_ms: entry.avgReactionMs,
+        difficulty: entry.difficulty,
+      }),
+    });
+
+    const payload = await response.json();
+    if (!response.ok || payload.availability !== 'ready') {
+      throw new Error(payload.error || 'Unable to submit score');
     }
+
+    return payload.score;
   }
 
   return { list, submit };
@@ -327,14 +344,23 @@ async function renderLeaderboard() {
   const response = await leaderboard.list();
   const rows = response.entries;
   els.leaderboardTableBody.innerHTML = '';
-  els.leaderboardError.classList.toggle('hidden', response.ok);
+  const showError = response.availability === 'unavailable';
+  els.leaderboardError.classList.toggle('hidden', !showError);
+
+  if (response.availability === 'not_configured') {
+    els.leaderboardEmpty.classList.remove('hidden');
+    els.leaderboardEmpty.textContent = 'Global leaderboard is not configured yet.';
+    return;
+  }
 
   if (!rows.length) {
+    els.leaderboardEmpty.textContent = 'No scores yet. Be the first to submit!';
     els.leaderboardEmpty.classList.remove('hidden');
     return;
   }
 
   els.leaderboardEmpty.classList.add('hidden');
+  els.leaderboardEmpty.textContent = 'No global scores yet. Finish a run and submit to claim the first spot.';
   rows.forEach((entry, idx) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -403,6 +429,12 @@ els.submitForm.addEventListener('submit', async (event) => {
   els.submitMessage.textContent = 'Submitting...';
 
   try {
+    const availability = await leaderboard.list();
+    if (availability.availability !== 'ready') {
+      els.submitMessage.textContent = 'Global leaderboard is unavailable right now. Submission is disabled.';
+      return;
+    }
+
     const payload = {
       runId: state.finalResult.runId,
       name,
@@ -413,14 +445,16 @@ els.submitForm.addEventListener('submit', async (event) => {
       createdAt: state.finalResult.createdAt,
     };
 
-    const response = await leaderboard.submit(payload);
+    await leaderboard.submit(payload);
     state.submittedRunId = state.finalResult.runId;
-    const globalText = response.source === 'global' ? 'global' : 'cached';
-    els.rankMessage.textContent = `Placed #${response.rank || '—'} on the ${globalText} leaderboard.`;
     els.submitMessage.textContent = 'Score submitted successfully.';
     await renderLeaderboard();
-  } catch {
-    els.submitMessage.textContent = 'Unable to submit right now. Please try again.';
+
+    const refreshed = await leaderboard.list();
+    const rank = refreshed.entries.findIndex((entry) => entry.runId === state.finalResult.runId || (entry.name === payload.name && entry.score === payload.score && entry.avgReactionMs === payload.avgReactionMs)) + 1;
+    els.rankMessage.textContent = rank > 0 ? `Placed #${rank} on the global leaderboard.` : 'Submitted to global leaderboard.';
+  } catch (error) {
+    els.submitMessage.textContent = error.message || 'Unable to submit right now. Please try again.';
   } finally {
     els.submitBtn.disabled = false;
   }

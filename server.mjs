@@ -2,7 +2,8 @@ import { createServer } from 'node:http';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readLeaderboard, writeLeaderboard } from './leaderboard-store.mjs';
+import { insertScore, isLeaderboardConfigured, isLeaderboardReachable, readTopScores } from './db.mjs';
+import { mapRowToScore, validateScorePayload } from './leaderboard-types.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,30 +36,53 @@ async function serveStatic(req, res) {
   }
 }
 
+async function handleScoresApi(req, res) {
+  if (!isLeaderboardConfigured()) {
+    return sendJson(res, 200, { availability: 'not_configured', scores: [] });
+  }
+
+  if (!(await isLeaderboardReachable())) {
+    return sendJson(res, 503, { availability: 'unavailable', scores: [] });
+  }
+
+  if (req.method === 'GET') {
+    try {
+      const rows = await readTopScores();
+      return sendJson(res, 200, {
+        availability: 'ready',
+        scores: rows.map(mapRowToScore),
+      });
+    } catch {
+      return sendJson(res, 503, { availability: 'unavailable', scores: [] });
+    }
+  }
+
+  if (req.method === 'POST') {
+    try {
+      let body = '';
+      for await (const chunk of req) body += chunk;
+      const payload = JSON.parse(body || '{}');
+      const validation = validateScorePayload(payload);
+
+      if (!validation.ok) {
+        return sendJson(res, 400, { availability: 'ready', error: validation.error });
+      }
+
+      const inserted = await insertScore(validation.value);
+      return sendJson(res, 201, { availability: 'ready', score: mapRowToScore(inserted) });
+    } catch {
+      return sendJson(res, 503, { availability: 'unavailable', error: 'Unable to save score' });
+    }
+  }
+
+  return sendJson(res, 405, { error: 'Method not allowed' });
+}
+
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
 
-  if (url.pathname === '/api/leaderboard') {
-    const game = url.searchParams.get('game') || 'aim-trainer';
-
-    if (req.method === 'GET') {
-      const entries = await readLeaderboard(game);
-      return sendJson(res, 200, { ok: true, entries });
-    }
-
-    if (req.method === 'POST') {
-      try {
-        let body = '';
-        for await (const chunk of req) body += chunk;
-        const payload = JSON.parse(body || '{}');
-        const result = await writeLeaderboard(game, payload);
-        return sendJson(res, 200, { ok: true, ...result });
-      } catch {
-        return sendJson(res, 400, { ok: false, error: 'Invalid payload' });
-      }
-    }
-
-    return sendJson(res, 405, { ok: false, error: 'Method not allowed' });
+  if (url.pathname === '/api/scores') {
+    return handleScoresApi(req, res);
   }
 
   return serveStatic(req, res);

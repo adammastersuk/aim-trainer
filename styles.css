@@ -176,11 +176,23 @@ button:disabled {
 
 #play-hint {
   position: absolute;
-  top: 50%;
+  top: 10px;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
   text-align: center;
   width: calc(100% - 24px);
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  border: 1px solid var(--border);
+  pointer-events: none;
+  z-index: 2;
+}
+
+#play-hint.hidden {
+  display: none;
 }
 
 #target {
@@ -260,7 +272,32 @@ td {
     grid-template-columns: 1fr;
   }
 
+  .live-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .live-stats .kv-item {
+    padding: 8px 6px;
+    text-align: center;
+    border-radius: 10px;
+  }
+
+  .live-stats .kv-label {
+    font-size: 0.72rem;
+  }
+
+  .live-stats .kv-value {
+    font-size: 1rem;
+    margin-top: 2px;
+  }
+
   #play-area {
     min-height: 280px;
+  }
+
+  #play-hint {
+    font-size: 0.85rem;
+    padding: 6px 8px;
   }
 }

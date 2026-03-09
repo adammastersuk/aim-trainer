@@ -4,7 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Aim Trainer</title>
-    <link rel="stylesheet" href="styles.css" />
+    <link id="app-stylesheet" rel="stylesheet" href="" />
+    <script>
+      (function ensureRelativeAssetBase() {
+        const path = window.location.pathname;
+        const basePath = path.endsWith('/') ? path : `${path}/`;
+        const cssHref = `${basePath}styles.css`;
+
+        const stylesheet = document.getElementById('app-stylesheet');
+        if (stylesheet) {
+          stylesheet.setAttribute('href', cssHref);
+        }
+
+        window.__AIM_TRAINER_ASSET_BASE__ = basePath;
+      })();
+    </script>
   </head>
   <body>
     <main class="page">
@@ -73,8 +87,15 @@
           </table>
         </div>
       </section>
-    </main>
 
-    <script type="module" src="main.js"></script>
+    <script>
+      (function loadAppModule() {
+        const base = window.__AIM_TRAINER_ASSET_BASE__ || './';
+        const script = document.createElement('script');
+        script.type = 'module';
+        script.src = `${base}main.js`;
+        document.body.append(script);
+      })();
+    </script>
   </body>
 </html>

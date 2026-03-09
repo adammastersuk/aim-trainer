@@ -169,6 +169,11 @@ function createFinalResult() {
   });
 }
 
+function setPlayHint(text = '') {
+  els.playHint.textContent = text;
+  els.playHint.classList.toggle('hidden', !text);
+}
+
 function showResult(result) {
   const items = [
     ['Final Score', result.score],
@@ -195,7 +200,7 @@ function endRun() {
   state.timerId = null;
   state.status = 'finished';
   els.target.style.display = 'none';
-  els.playHint.textContent = 'Run finished. Submit your score or restart.';
+  setPlayHint('Run finished. Submit your score or restart. Tap the play area to start a new run.');
   state.finalResult = createFinalResult();
   renderLiveStats(0);
   showResult(state.finalResult);
@@ -220,7 +225,7 @@ function startRun() {
   els.startBtn.disabled = true;
   els.restartBtn.disabled = false;
   els.target.style.display = 'block';
-  els.playHint.textContent = 'Tap/click the target as quickly as you can.';
+  setPlayHint();
 
   setTargetPosition();
   renderLiveStats(RUN_DURATION_MS);
@@ -250,13 +255,16 @@ function restartRun() {
   els.submitForm.reset();
   els.submitMessage.textContent = '';
   els.resultCard.classList.add('hidden');
-  els.playHint.textContent = 'Press start to begin.';
+  setPlayHint('Tap/click anywhere in the play area (or press Start) to begin.');
   els.target.style.display = 'none';
   renderLiveStats(RUN_DURATION_MS);
 }
 
 function handlePlayAreaPress(event) {
-  if (state.status !== 'running') return;
+  if (state.status !== 'running') {
+    startRun();
+    return;
+  }
 
   if (event.target === els.target) {
     state.hits += 1;
@@ -378,3 +386,4 @@ els.playerName.addEventListener('keydown', (event) => {
 applyTheme(getPreferredTheme());
 renderLiveStats(RUN_DURATION_MS);
 renderLeaderboard();
+setPlayHint('Tap/click anywhere in the play area (or press Start) to begin.');

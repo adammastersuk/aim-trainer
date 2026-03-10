@@ -1,3 +1,4 @@
+// DEPRECATED: Production deployments use the serverless API in api/scores.mjs.
 import { createServer } from 'node:http';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';

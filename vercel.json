@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/aim-trainer/api/scores",
+      "destination": "/api/scores"
+    }
+  ]
+}

@@ -6,7 +6,8 @@ const TARGET_MARGIN = 8;
 const MAX_ENTRIES = 10;
 const MODE = 'classic-30s';
 const LEADERBOARD_STORAGE_KEY = 'aim-trainer:leaderboard-cache';
-const SCORE_API_PATH = '/api/scores';
+const APP_BASE_PATH = (window.__AIM_TRAINER_ASSET_BASE__ || '/').replace(/\/+$/, '/');
+const SCORE_API_PATH = `${APP_BASE_PATH}api/scores`;
 const THEME_STORAGE_KEY = 'aim-trainer:theme';
 
 const els = {

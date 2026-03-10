@@ -1,5 +1,16 @@
 # Aim Trainer
 
+## Production leaderboard architecture
+
+This project is deployed as a static frontend with a serverless API.
+
+- Frontend app is served from `/aim-trainer`.
+- Leaderboard API is implemented as a Vercel Serverless Function at `api/scores.mjs`.
+- Requests from `/aim-trainer/api/scores` are rewritten to `/api/scores` via `vercel.json`.
+- Neon/Postgres is used for persistent global Top 10 storage.
+
+`server.mjs` is deprecated and only retained for local compatibility. Production should not rely on it.
+
 ## Leaderboard API
 
 - `GET /api/scores`
@@ -47,4 +58,4 @@ Run `db/schema.sql` (or the migration in `db/migrations/2026030901_global_top10.
 - `POSTGRES_URL` (preferred)
 - `DATABASE_URL` (fallback)
 
-The server normalizes `psql://` and `postgresql://` URLs to `postgres://`.
+The API normalizes `psql://` and `postgresql://` URLs to `postgres://`.
